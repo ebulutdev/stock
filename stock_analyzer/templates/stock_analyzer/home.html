@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Borsa İstanbul Hisse Analizi</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .result-card {
+            display: none;
+            margin-top: 20px;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .progress {
+            height: 25px;
+        }
+        .progress-bar {
+            line-height: 25px;
+            font-size: 0.9rem;
+        }
+        .scenario-cards .card {
+            transition: transform 0.2s;
+        }
+        .scenario-cards .card:hover {
+            transform: translateY(-5px);
+        }
+        .badge {
+            font-size: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center mb-4">Borsa İstanbul Hisse Analizi</h1>
+        
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <form id="stockForm" class="mb-3">
+                            <div class="mb-3">
+                                <label for="symbol" class="form-label">Hisse Senedi Sembolü</label>
+                                <input type="text" class="form-control" id="symbol" name="symbol" 
+                                       placeholder="Örn: THYAO" required>
+                                <div class="form-text">Borsa İstanbul hisse senedi sembolünü giriniz (örn: THYAO, GARAN)</div>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">Analiz Et</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="loading">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Yükleniyor...</span>
+                    </div>
+                    <p class="mt-2">Veriler yükleniyor...</p>
+                </div>
+
+                <div class="card result-card">
+                    <div class="card-body">
+                        <h5 class="card-title">Analiz Sonuçları</h5>
+                        
+                        <!-- Temel Bilgiler -->
+                        <div id="results" class="mb-4">
+                            <!-- JavaScript ile doldurulacak temel bilgiler -->
+                        </div>
+
+                        <!-- İstatistiksel Analiz -->
+                        <div class="card mb-4">
+                            <div class="card-header bg-primary text-white">
+                                <h6 class="mb-0">İstatistiksel Özet</h6>
+                            </div>
+                            <div class="card-body" id="summary">
+                                <!-- JavaScript ile doldurulacak özet -->
+                            </div>
+                        </div>
+
+                        <!-- Senaryo Analizi -->
+                        <div class="card mb-4">
+                            <div class="card-header bg-info text-white">
+                                <h6 class="mb-0">Olası Senaryolar</h6>
+                            </div>
+                            <div class="card-body">
+                                <div id="scenarios">
+                                    <!-- JavaScript ile doldurulacak senaryolar -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Geçmiş Olaylar -->
+                        <div class="card">
+                            <div class="card-header bg-secondary text-white">
+                                <h6 class="mb-0">Geçmiş Benzer Seviyeler</h6>
+                            </div>
+                            <div class="card-body">
+                                <div id="historicalOccurrences">
+                                    <!-- JavaScript ile doldurulacak geçmiş olaylar -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-danger mt-3" id="errorAlert" style="display: none;">
+                    <span id="errorMessage"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('stockForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const symbol = document.getElementById('symbol').value;
+            const loading = document.querySelector('.loading');
+            const resultCard = document.querySelector('.result-card');
+            const errorAlert = document.getElementById('errorAlert');
+            const errorMessage = document.getElementById('errorMessage');
+            
+            loading.style.display = 'block';
+            resultCard.style.display = 'none';
+            errorAlert.style.display = 'none';
+            
+            try {
+                const response = await fetch(`/analyze_stock/?symbol=${encodeURIComponent(symbol)}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    errorMessage.textContent = data.error;
+                    errorAlert.style.display = 'block';
+                    return;
+                }
+                
+                // Temel bilgiler
+                document.getElementById('results').innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h3>${symbol}</h3>
+                        <h4 class="text-primary">${data.current_price.toFixed(2)} TL</h4>
+                    </div>
+                    <p class="text-muted">Son Güncelleme: ${new Date(data.timestamp * 1000).toLocaleString()}</p>
+                `;
+                
+                // İstatistiksel özet
+                if (data.summary) {
+                    const positiveNextDay = (data.summary.positive_next_day / data.summary.total_occurrences * 100).toFixed(1);
+                    const positiveNextWeek = (data.summary.positive_next_week / data.summary.total_occurrences * 100).toFixed(1);
+                    const positiveNextMonth = (data.summary.positive_next_month / data.summary.total_occurrences * 100).toFixed(1);
+                    
+                    document.getElementById('summary').innerHTML = `
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Genel İstatistikler</h6>
+                                <p>Benzer Fiyat Seviyesi: ${data.summary.total_occurrences} kez</p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Yükseliş Olasılıkları</h6>
+                                <div class="progress mb-2">
+                                    <div class="progress-bar" role="progressbar" style="width: ${positiveNextDay}%" 
+                                         aria-valuenow="${positiveNextDay}" aria-valuemin="0" aria-valuemax="100">
+                                        Ertesi Gün: ${positiveNextDay}%
+                                    </div>
+                                </div>
+                                <div class="progress mb-2">
+                                    <div class="progress-bar bg-info" role="progressbar" style="width: ${positiveNextWeek}%" 
+                                         aria-valuenow="${positiveNextWeek}" aria-valuemin="0" aria-valuemax="100">
+                                        1 Hafta: ${positiveNextWeek}%
+                                    </div>
+                                </div>
+                                <div class="progress mb-2">
+                                    <div class="progress-bar bg-success" role="progressbar" style="width: ${positiveNextMonth}%" 
+                                         aria-valuenow="${positiveNextMonth}" aria-valuemin="0" aria-valuemax="100">
+                                        1 Ay: ${positiveNextMonth}%
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // Senaryo analizi
+                if (data.gemini_comment) {
+                    document.getElementById('scenarios').innerHTML = `
+                        <div class="scenario-cards">
+                            <div class="card mb-2 border-success">
+                                <div class="card-body">
+                                    <h6 class="card-subtitle mb-2 text-success">Yüksek Olasılıklı Senaryo</h6>
+                                    <p class="card-text">${data.gemini_comment}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // Geçmiş olaylar
+                if (data.price_history && data.price_history.length > 0) {
+                    const historyHtml = data.price_history.map(item => `
+                        <div class="card mb-2">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <h6 class="card-subtitle mb-2 text-muted">${item.date}</h6>
+                                    <span class="badge ${getPerformanceBadgeClass(item.next_days[22]?.change_pct)}">
+                                        ${item.next_days[22]?.change_pct.toFixed(2)}%
+                                    </span>
+                                </div>
+                                <div class="row">
+                                    <div class="col-4">
+                                        <small>1 Gün: ${formatChange(item.next_days[1]?.change_pct)}</small>
+                                    </div>
+                                    <div class="col-4">
+                                        <small>1 Hafta: ${formatChange(item.next_days[5]?.change_pct)}</small>
+                                    </div>
+                                    <div class="col-4">
+                                        <small>1 Ay: ${formatChange(item.next_days[22]?.change_pct)}</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                    
+                    document.getElementById('historicalOccurrences').innerHTML = historyHtml;
+                }
+                
+                resultCard.style.display = 'block';
+            } catch (error) {
+                console.error('Hata:', error);
+                errorMessage.textContent = 'Bir hata oluştu. Lütfen daha sonra tekrar deneyiniz.';
+                errorAlert.style.display = 'block';
+            } finally {
+                loading.style.display = 'none';
+            }
+        });
+
+        // Yardımcı fonksiyonlar
+        function getPerformanceBadgeClass(change) {
+            if (!change) return 'bg-secondary';
+            if (change > 5) return 'bg-success';
+            if (change > 0) return 'bg-info';
+            if (change > -5) return 'bg-warning';
+            return 'bg-danger';
+        }
+
+        function formatChange(change) {
+            if (!change) return 'N/A';
+            return `${change > 0 ? '+' : ''}${change.toFixed(2)}%`;
+        }
+    </script>
+</body>
+</html> 
